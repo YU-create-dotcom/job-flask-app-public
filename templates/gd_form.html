@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>GD・面接ログ追加</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+    <h1>GD・面接ログ追加</h1>
+</div>
+
+<div class="fixed-nav">
+    <a href="/">トップへ戻る</a>
+    <a href="/gd/logs" class="secondary">ログ一覧へ</a>
+</div>
+
+<form method="POST" class="form-page">
+    <label>種類</label>
+    <select name="log_type">
+        <option value="GD">GD</option>
+        <option value="面接">面接</option>
+    </select>
+
+    <label>企業名</label>
+    <input type="text" name="company" placeholder="例：三菱UFJ銀行">
+
+    <label>テーマ</label>
+    <input type="text" name="theme" placeholder="例：少子高齢化について">
+
+    <label>自分の役割</label>
+    <input type="text" name="role" placeholder="司会、まとめ役、発言補助など">
+
+    <label>状況</label>
+    <textarea name="situation" placeholder="GDや面接の状況を書いてください"></textarea>
+
+    <label>自分の発言・行動</label>
+    <textarea name="my_action" placeholder="自分が何を話したか、どう動いたかを書いてください"></textarea>
+
+    <label>結果</label>
+    <textarea name="result" placeholder="議論や面接の結果、相手の反応などを書いてください"></textarea>
+
+    <label>反省</label>
+    <textarea name="reflection" placeholder="次回に活かしたい点を書いてください"></textarea>
+
+    <button type="submit">保存する</button>
+</form>
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>AIフィードバック</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="feedback-page">
+  <h1>AIフィードバック</h1>
+
+  <div class="feedback-header">
+    <h2>{{ log.company }}：{{ log.theme }}</h2>
+    <p>種類：{{ log.log_type }}　/　役割：{{ log.role }}</p>
+  </div>
+
+  <div class="feedback-content">
+    {{ feedback
+      | replace('【1. 良かった点】', '<div class="feedback-section"><h3>1. 良かった点</h3>')
+      | replace('【2. 評価されやすいポイント】', '</div><div class="feedback-section"><h3>2. 評価されやすいポイント</h3>')
+      | replace('【3. 改善点】', '</div><div class="feedback-section"><h3>3. 改善点</h3>')
+      | replace('【4. 次回使える発言例】', '</div><div class="feedback-section"><h3>4. 次回使える発言例</h3>')
+      | replace('【5. 面接や自己PRに転用できる強み】', '</div><div class="feedback-section"><h3>5. 面接や自己PRに転用できる強み</h3>')
+      | replace('【6. 次回意識すべき行動】', '</div><div class="feedback-section"><h3>6. 次回意識すべき行動</h3>')
+      | replace('\n', '<br>')
+      | safe
+    }}
+    </div>
+  </div>
+
+  <div class="feedback-links">
+    <a href="/gd/logs">ログ一覧へ戻る</a>
+    <a href="/">トップへ戻る</a>
+  </div>
+</div>
+
+</body>
+</html>

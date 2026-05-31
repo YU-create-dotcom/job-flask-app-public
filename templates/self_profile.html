@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>自己分析管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+    <h1>自己分析管理</h1>
+</div>
+
+<div class="fixed-nav">
+    <a href="/">トップへ戻る</a>
+</div>
+
+<div class="form-page">
+    <h2>新しく追加</h2>
+
+    <form method="POST">
+        <label>項目</label>
+        <select name="category">
+            {% for category in categories %}
+            <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+        </select>
+
+        <label>タイトル</label>
+        <input type="text" name="title" placeholder="例：学割サイト開発での統括経験">
+
+        <label>内容</label>
+        <textarea name="content" placeholder="具体的な経験・考え・強みなどを書いてください"></textarea>
+
+        <button type="submit">追加する</button>
+    </form>
+</div>
+
+<div class="profile-sections">
+    {% for category in categories %}
+    <section class="profile-section">
+        <h2>{{ category }}</h2>
+
+        <div class="profile-grid">
+            {% for profile in profiles %}
+                {% if profile.category == category %}
+                <div class="profile-card">
+                    <h3>{{ profile.title }}</h3>
+                    <p>{{ profile.content }}</p>
+                    <small>{{ profile.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</div>
+
+</body>
+</html>

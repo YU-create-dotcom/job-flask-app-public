@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>GD・面接ログ詳細</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+    <h1>GD・面接ログ詳細</h1>
+</div>
+
+<div class="fixed-nav">
+    <a href="/">トップへ戻る</a>
+    <a href="/gd/logs" class="secondary">ログ一覧へ</a>
+</div>
+
+<div class="form-page">
+    <h2>{{ log.company }}：{{ log.theme }}</h2>
+
+    <p><strong>種類：</strong>{{ log.log_type }}</p>
+    <p><strong>役割：</strong>{{ log.role }}</p>
+    <p><strong>作成日：</strong>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+
+    <h3>状況</h3>
+    <p>{{ log.situation }}</p>
+
+    <h3>自分の発言・行動</h3>
+    <p>{{ log.my_action }}</p>
+
+    <h3>結果</h3>
+    <p>{{ log.result }}</p>
+
+    <h3>反省</h3>
+    <p>{{ log.reflection }}</p>
+
+    <a href="/gd/feedback/{{ log.id }}">AIフィードバックを見る</a>
+</div>
+
+</body>
+</html>

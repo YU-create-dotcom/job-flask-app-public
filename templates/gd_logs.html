@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>GD・面接ログ一覧</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="page-header">
+    <h1>GD・面接ログ一覧</h1>
+</div>
+
+<div class="fixed-nav">
+    <a href="/">トップへ戻る</a>
+    <a href="/gd/new" class="secondary">新しく記録する</a>
+</div>
+
+<div class="logs-grid">
+    {% for log in logs %}
+    <div class="log-card">
+      <h2>{{ log.company }}：{{ log.theme }}</h2>
+      <p><strong>種類：</strong>{{ log.log_type }}</p>
+      <p><strong>役割：</strong>{{ log.role }}</p>
+      <p><strong>作成日：</strong>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+
+      <div class="log-actions">
+        <a href="/gd/detail/{{ log.id }}">記録を見る</a>
+        <a href="/gd/feedback/{{ log.id }}">AIフィードバックを見る</a>
+      </div>
+    </div>
+    {% endfor %}
+</div>
+
+</body>
+</html>
