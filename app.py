@@ -1,11 +1,17 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
+
+try:
+    import gspread
+    from oauth2client.service_account import ServiceAccountCredentials
+except ImportError:
+    gspread = None
+    ServiceAccountCredentials = None
+
 
 load_dotenv()
 
@@ -21,27 +27,49 @@ db = SQLAlchemy(app)
 # =========================
 # OpenAI設定
 # =========================
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # =========================
 # Google Sheets設定
 # =========================
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
+GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
+SHEET_NAME = os.getenv("SHEET_NAME", "シート1")
 
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-gspread_client = gspread.authorize(creds)
+MAIL_SPREADSHEET_ID = os.getenv("MAIL_SPREADSHEET_ID")
+MAIL_SHEET_NAME = os.getenv("MAIL_SHEET_NAME", "就活管理")
 
-SPREADSHEET_ID = "REMOVED_SPREADSHEET_ID"
-SHEET_NAME = "シート1"
 
-MAIL_SPREADSHEET_ID = "REMOVED_MAIL_SPREADSHEET_ID"
-MAIL_SHEET_NAME = "就活管理"
+def get_gspread_client():
+    if gspread is None or ServiceAccountCredentials is None:
+        return None
 
-spreadsheet = gspread_client.open_by_key(SPREADSHEET_ID)
-sheet = spreadsheet.worksheet(SHEET_NAME)
+    if not os.path.exists(GOOGLE_CREDENTIALS_FILE):
+        return None
+
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        GOOGLE_CREDENTIALS_FILE,
+        scope
+    )
+    return gspread.authorize(creds)
+
+
+def get_sheet(spreadsheet_id, sheet_name):
+    if not spreadsheet_id:
+        return None
+
+    client = get_gspread_client()
+    if client is None:
+        return None
+
+    spreadsheet = client.open_by_key(spreadsheet_id)
+    return spreadsheet.worksheet(sheet_name)
 
 
 # =========================
@@ -60,12 +88,14 @@ class GDLog(db.Model):
     ai_feedback = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+
 class SelfProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     category = db.Column(db.String(50), nullable=False)
     title = db.Column(db.String(200))
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
 
 # =========================
 # 日付変換
@@ -107,6 +137,11 @@ def index():
 # =========================
 @app.route("/api/events")
 def api_events():
+    sheet = get_sheet(SPREADSHEET_ID, SHEET_NAME)
+
+    if sheet is None:
+        return jsonify([])
+
     rows = sheet.get_all_values()
     events = []
 
@@ -148,53 +183,52 @@ def api_events():
 
     return jsonify(events)
 
+
 @app.route("/api/mails")
 def api_mails():
-    mail_spreadsheet = gspread_client.open_by_key(MAIL_SPREADSHEET_ID)
-    mail_sheet = mail_spreadsheet.worksheet(MAIL_SHEET_NAME)
+    mail_sheet = get_sheet(MAIL_SPREADSHEET_ID, MAIL_SHEET_NAME)
+
+    if mail_sheet is None:
+        return jsonify([])
 
     rows = mail_sheet.get_all_values()
     mails = []
 
     for row in rows[1:]:
-        received_at = row[0] if len(row) > 0 else ""
-        company = row[1] if len(row) > 1 else ""
-        subject = row[2] if len(row) > 2 else ""
-        category = row[3] if len(row) > 3 else ""
-        deadline = row[4] if len(row) > 4 else ""
-        snippet = row[5] if len(row) > 5 else ""
-        gmail_url = row[6] if len(row) > 6 else ""
-        message_id = row[7] if len(row) > 7 else ""
-        status = row[8] if len(row) > 8 else ""
-
         mails.append({
-            "received_at": received_at,
-            "company": company,
-            "subject": subject,
-            "category": category,
-            "deadline": deadline,
-            "snippet": snippet,
-            "gmail_url": gmail_url,
-            "message_id": message_id,
-            "status": status
+            "received_at": row[0] if len(row) > 0 else "",
+            "company": row[1] if len(row) > 1 else "",
+            "subject": row[2] if len(row) > 2 else "",
+            "category": row[3] if len(row) > 3 else "",
+            "deadline": row[4] if len(row) > 4 else "",
+            "snippet": row[5] if len(row) > 5 else "",
+            "gmail_url": row[6] if len(row) > 6 else "",
+            "message_id": row[7] if len(row) > 7 else "",
+            "status": row[8] if len(row) > 8 else "",
         })
 
     return jsonify(mails[:20])
 
+
 @app.route("/api/mails/all")
 def api_mails_all():
-    mail_spreadsheet = gspread_client.open_by_key(MAIL_SPREADSHEET_ID)
-    mail_sheet = mail_spreadsheet.worksheet(MAIL_SHEET_NAME)
+    mail_sheet = get_sheet(MAIL_SPREADSHEET_ID, MAIL_SHEET_NAME)
+
+    if mail_sheet is None:
+        return jsonify([])
 
     rows = mail_sheet.get_all_values()
     return jsonify(rows)
 
+
 @app.route("/mail/details")
 def mail_details():
-    mail_spreadsheet = gspread_client.open_by_key(MAIL_SPREADSHEET_ID)
-    mail_sheet = mail_spreadsheet.worksheet(MAIL_SHEET_NAME)
+    mail_sheet = get_sheet(MAIL_SPREADSHEET_ID, MAIL_SHEET_NAME)
 
-    rows = mail_sheet.get_all_values()
+    if mail_sheet is None:
+        rows = [["受信日時", "企業名", "件名", "分類", "締切", "本文", "URL", "ID", "状態"]]
+    else:
+        rows = mail_sheet.get_all_values()
 
     html = """
     <!DOCTYPE html>
@@ -341,6 +375,7 @@ def mail_details():
 
     return html
 
+
 # =========================
 # GD・面接ログ追加
 # =========================
@@ -372,6 +407,16 @@ def gd_logs():
     logs = GDLog.query.order_by(GDLog.created_at.desc()).all()
     return render_template("gd_logs.html", logs=logs)
 
+
+@app.route("/gd/detail/<int:log_id>")
+def gd_detail(log_id):
+    log = GDLog.query.get_or_404(log_id)
+    return render_template("gd_detail.html", log=log)
+
+
+# =========================
+# 自己分析情報
+# =========================
 @app.route("/self-profile", methods=["GET", "POST"])
 def self_profile():
     if request.method == "POST":
@@ -402,10 +447,6 @@ def self_profile():
         categories=categories
     )
 
-@app.route("/gd/detail/<int:log_id>")
-def gd_detail(log_id):
-    log = GDLog.query.get_or_404(log_id)
-    return render_template("gd_detail.html", log=log)
 
 # =========================
 # AIフィードバック
@@ -414,12 +455,11 @@ def gd_detail(log_id):
 def gd_feedback(log_id):
     log = GDLog.query.get_or_404(log_id)
 
-    # すでにAIフィードバックが保存されている場合は、APIを呼ばずに表示
     if log.ai_feedback:
         return render_template("gd_feedback.html", log=log, feedback=log.ai_feedback)
 
-    if not os.getenv("OPENAI_API_KEY"):
-        feedback = "OPENAI_API_KEY が設定されていません。.env ファイルを確認してください。"
+    if openai_client is None:
+        feedback = "OPENAI_API_KEY が設定されていないため、AIフィードバックは利用できません。"
         return render_template("gd_feedback.html", log=log, feedback=feedback)
 
     prompt = f"""
@@ -473,12 +513,11 @@ def gd_feedback(log_id):
 
     try:
         response = openai_client.responses.create(
-            model="gpt-5.5",
+            model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
             input=prompt
         )
         feedback = response.output_text
 
-        # 初回生成したAIフィードバックをDBに保存
         log.ai_feedback = feedback
         db.session.commit()
 
