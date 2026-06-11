@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+﻿from flask import Flask, render_template, jsonify, request, redirect, url_for
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -407,6 +407,12 @@ def gd_logs():
     logs = GDLog.query.order_by(GDLog.created_at.desc()).all()
     return render_template("gd_logs.html", logs=logs)
 
+@app.post("/gd/delete/<int:log_id>")
+def gd_delete(log_id):
+    log = GDLog.query.get_or_404(log_id)
+    db.session.delete(log)
+    db.session.commit()
+    return redirect(url_for("gd_logs"))
 
 @app.route("/gd/detail/<int:log_id>")
 def gd_detail(log_id):
@@ -447,6 +453,12 @@ def self_profile():
         categories=categories
     )
 
+@app.post("/self-profile/delete/<int:profile_id>")
+def self_profile_delete(profile_id):
+    profile = SelfProfile.query.get_or_404(profile_id)
+    db.session.delete(profile)
+    db.session.commit()
+    return redirect(url_for("self_profile"))
 
 # =========================
 # AIフィードバック
@@ -455,16 +467,33 @@ def self_profile():
 def gd_feedback(log_id):
     log = GDLog.query.get_or_404(log_id)
 
-    if log.ai_feedback:
+    # すでにAIフィードバックが保存されている場合は、通常はAPIを呼ばずに表示
+    # ?regenerate=1 のときだけ、最新の自己分析も反映して再生成する
+    if log.ai_feedback and request.args.get("regenerate") != "1":
         return render_template("gd_feedback.html", log=log, feedback=log.ai_feedback)
 
     if openai_client is None:
         feedback = "OPENAI_API_KEY が設定されていないため、AIフィードバックは利用できません。"
         return render_template("gd_feedback.html", log=log, feedback=feedback)
 
+    self_profiles = SelfProfile.query.order_by(SelfProfile.category.asc(), SelfProfile.created_at.desc()).all()
+    if self_profiles:
+        self_profile_text = "\n\n".join(
+            f"【{profile.category}】\nタイトル：{profile.title or '未入力'}\n内容：{profile.content}"
+            for profile in self_profiles
+        )
+    else:
+        self_profile_text = "自己分析管理にはまだ登録がありません。"
+
     prompt = f"""
 あなたは就活のGD・面接対策コーチです。
-以下の記録をもとに、評価者視点で具体的にフィードバックしてください。
+以下のGD・面接ログと自己分析管理の内容をもとに、評価者視点で具体的にフィードバックしてください。
+自己分析管理の内容は、本人の強み・価値観・過去経験として参照し、ログへの改善提案や自己PRへの転用に反映してください。
+
+【自己分析管理】
+{self_profile_text}
+
+【GD・面接ログ】
 
 【種類】
 {log.log_type}
@@ -490,25 +519,66 @@ def gd_feedback(log_id):
 【反省】
 {log.reflection}
 
+以下の評価方針で、かなり厳しめに、忖度せず具体的に評価してください。
+- 大雑把な励ましではなく、評価者がどう見るかを明確に書く。
+- 良い点も課題も、必ずログ本文または自己分析管理の内容を根拠にする。
+- 「何が足りないか」「なぜ危険か」「どう直すか」を具体的に書く。
+- 自己分析管理の内容は、本人の強み・価値観・過去経験として接続する。
+- 可能なら、SIer・ITコンサル志望者としてどう見えるかも触れる。
+- 採点は甘くしない。一般的な学生の平均は55〜65点として扱う。
+- A評価以上は、成果・具体性・壁への対処・再現性が明確な場合だけにする。
+- 成果数字、周囲への影響、本人の具体的な発言や判断が薄い場合は必ず減点する。
+- 「頑張った」「学んだ」だけで、行動の質や成果が曖昧な場合はC評価もためらわない。
+- 褒める場合も、同時に「このままだと面接で突かれる点」を率直に書く。
+
+ランク基準：
+- S：90〜100点。即戦力級に強く、深掘りにも耐えやすい。
+- A：75〜89点。選考で十分武器になるが、改善余地あり。
+- B：60〜74点。素材は良いが、具体性や成果が不足。
+- C：45〜59点。評価される要素はあるが、面接ではかなり突かれる。
+- D：44点以下。現状では選考で弱く、構成から見直しが必要。
+
 出力は必ず以下の形式にしてください。
 
-【1. 良かった点】
-箇条書きで具体的に。
+【総合評価】
+総合得点：xx/100点
+ランク：S/A/B/C/D
+一言サマリー：評価者にどう映るかを1〜2文で率直に。
 
-【2. 評価されやすいポイント】
-評価者がどこを見ているかを具体的に。
+【軸別スコア】
+| 評価軸 | 点数 | 短評 |
+|---|---:|---|
+| ①結論・主張の明確さ | xx/20 |  |
+| ②状況把握・課題設定 | xx/20 |  |
+| ③発言・行動の質 | xx/20 |  |
+| ④協調性・巻き込み力 | xx/15 |  |
+| ⑤成果・学び・再現性 | xx/15 |  |
+| ⑥自己分析との一貫性 | xx/10 |  |
 
-【3. 改善点】
-次回改善すべき行動を具体的に。
+【良かった点】
+3つ挙げる。各項目は、見出し、根拠、評価される理由を書く。
 
-【4. 次回使える発言例】
-そのままGDで使える発言例を複数。
+【改善点】
+優先度順に4つ挙げる。各項目は以下の形にする。
+- 現状の問題：
+- 評価者の視点：
+- 改善案：
+- 次回の具体アクション：
 
-【5. 面接や自己PRに転用できる強み】
-この経験をどう自己PRに使えるか。
+【深掘り質問】
+面接官から聞かれそうな質問を5つ挙げる。各質問に「意図」も添える。
 
-【6. 次回意識すべき行動】
-次のGD・面接で意識すること。
+【危険信号チェック】
+選考上のリスクをチェックリスト形式で挙げる。
+
+【自己分析との接続】
+自己分析管理の内容を踏まえ、このログから自己PR・面接回答に転用できる強みを具体化する。
+
+【次回使える発言例】
+GDまたは面接でそのまま使える発言例を3〜5個書く。
+
+【総括】
+この経験・ログが選考でどう見えるか、最優先で直すべきこと、次に練習すべきことをまとめる。
 """
 
     try:
@@ -518,6 +588,7 @@ def gd_feedback(log_id):
         )
         feedback = response.output_text
 
+        # 初回生成したAIフィードバックをDBに保存
         log.ai_feedback = feedback
         db.session.commit()
 
@@ -540,3 +611,4 @@ if __name__ == "__main__":
         port=5000,
         use_reloader=False
     )
+

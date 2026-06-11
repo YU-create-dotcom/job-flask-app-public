@@ -19,15 +19,21 @@
 <div class="logs-grid">
     {% for log in logs %}
     <div class="log-card">
-      <h2>{{ log.company }}：{{ log.theme }}</h2>
-      <p><strong>種類：</strong>{{ log.log_type }}</p>
-      <p><strong>役割：</strong>{{ log.role }}</p>
-      <p><strong>作成日：</strong>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <form class="delete-form" method="POST" action="/gd/delete/{{ log.id }}" onsubmit="return confirm('このログを削除しますか？');">
+            <button class="delete-icon-button" type="submit" aria-label="削除" title="削除">
+                <span aria-hidden="true">&#128465;</span>
+            </button>
+        </form>
 
-      <div class="log-actions">
-        <a href="/gd/detail/{{ log.id }}">記録を見る</a>
-        <a href="/gd/feedback/{{ log.id }}">AIフィードバックを見る</a>
-      </div>
+        <h2>{{ log.company }}：{{ log.theme }}</h2>
+        <p><strong>種類：</strong>{{ log.log_type }}</p>
+        <p><strong>役割：</strong>{{ log.role }}</p>
+        <p><strong>作成日：</strong>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+
+        <div class="log-actions">
+            <a href="/gd/detail/{{ log.id }}">記録を見る</a>
+            <a href="/gd/feedback/{{ log.id }}">AIフィードバックを見る</a>
+        </div>
     </div>
     {% endfor %}
 </div>

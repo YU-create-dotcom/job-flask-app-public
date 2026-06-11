@@ -17,12 +17,15 @@
 
   <div class="feedback-content">
     {{ feedback
-      | replace('【1. 良かった点】', '<div class="feedback-section"><h3>1. 良かった点</h3>')
-      | replace('【2. 評価されやすいポイント】', '</div><div class="feedback-section"><h3>2. 評価されやすいポイント</h3>')
-      | replace('【3. 改善点】', '</div><div class="feedback-section"><h3>3. 改善点</h3>')
-      | replace('【4. 次回使える発言例】', '</div><div class="feedback-section"><h3>4. 次回使える発言例</h3>')
-      | replace('【5. 面接や自己PRに転用できる強み】', '</div><div class="feedback-section"><h3>5. 面接や自己PRに転用できる強み</h3>')
-      | replace('【6. 次回意識すべき行動】', '</div><div class="feedback-section"><h3>6. 次回意識すべき行動</h3>')
+      | replace('【総合評価】', '<div class="feedback-section"><h3>総合評価</h3>')
+      | replace('【軸別スコア】', '</div><div class="feedback-section"><h3>軸別スコア</h3>')
+      | replace('【良かった点】', '</div><div class="feedback-section"><h3>良かった点</h3>')
+      | replace('【改善点】', '</div><div class="feedback-section"><h3>改善点</h3>')
+      | replace('【深掘り質問】', '</div><div class="feedback-section"><h3>深掘り質問</h3>')
+      | replace('【危険信号チェック】', '</div><div class="feedback-section"><h3>危険信号チェック</h3>')
+      | replace('【自己分析との接続】', '</div><div class="feedback-section"><h3>自己分析との接続</h3>')
+      | replace('【次回使える発言例】', '</div><div class="feedback-section"><h3>次回使える発言例</h3>')
+      | replace('【総括】', '</div><div class="feedback-section"><h3>総括</h3>')
       | replace('\n', '<br>')
       | safe
     }}
@@ -32,6 +35,7 @@
   <div class="feedback-links">
     <a href="/gd/logs">ログ一覧へ戻る</a>
     <a href="/">トップへ戻る</a>
+    <a href="/gd/feedback/{{ log.id }}?regenerate=1" class="secondary">最新の自己分析で再生成</a>
   </div>
 </div>
 

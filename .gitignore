@@ -1,5 +1,39 @@
-credentials.json
-venv/
+﻿# Environment variables and credentials
 .env
+.env.*
+!.env.example
+credentials.json
+service_account.json
+client_secret*.json
+token.json
+config.json
+firebase*.json
+
+# Local Python environments
+venv/
+.venv/
+
+# Python cache and tooling
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Flask / local runtime data
 instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Exported or real user data
+*.csv
+*.tsv
+*.xlsx
+*.xls
+
+# OS / editor files
+.DS_Store
+desktop.ini
+.vscode/
+.idea/

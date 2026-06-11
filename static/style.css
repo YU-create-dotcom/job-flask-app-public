@@ -411,3 +411,141 @@ header,
     line-height: 1.7;
     white-space: pre-wrap;
 }
+
+.log-card,
+.profile-card {
+    position: relative;
+}
+
+.profile-card h3 {
+    margin: 14px 36px 16px 0;
+}
+
+.profile-content {
+    max-height: 11.9em;
+    overflow: hidden;
+    position: relative;
+}
+
+.profile-content::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3.4em;
+    background: linear-gradient(rgba(255,255,255,0), #fff);
+}
+
+
+.profile-detail-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1px solid #2563eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #2563eb;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.profile-detail-button:hover {
+    background: #eff6ff;
+}
+
+.delete-form {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    margin: 0;
+}
+
+.delete-icon-button {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.delete-icon-button:hover {
+    background: #fee2e2;
+    border-color: #fecaca;
+}
+
+.profile-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 72px 24px 24px;
+    box-sizing: border-box;
+    background: rgba(0,0,0,0.42);
+}
+
+.profile-modal-content {
+    width: min(900px, 100%);
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    box-sizing: border-box;
+    position: relative;
+    background: #fff;
+    border-radius: 10px;
+    padding: 54px 30px 30px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+}
+
+.profile-modal-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #f1f5f9;
+    color: #111827;
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.profile-modal-close:hover {
+    background: #e5e7eb;
+}
+
+.profile-modal-content h2 {
+    margin: 0 50px 10px 0;
+    color: #2563eb;
+    font-size: 28px;
+}
+
+.profile-modal-content small {
+    display: block;
+    margin-bottom: 22px;
+    color: #64748b;
+}
+
+.profile-modal-content p {
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.9;
+    font-size: 17px;
+}
+
+.feedback-links a.secondary {
+  background-color: #16a34a;
+}
+
+.feedback-links a.secondary:hover {
+  background-color: #15803d;
+}
+

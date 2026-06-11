@@ -45,9 +45,19 @@
             {% for profile in profiles %}
                 {% if profile.category == category %}
                 <div class="profile-card">
+                    <form class="delete-form" method="POST" action="/self-profile/delete/{{ profile.id }}" onsubmit="return confirm('この自己分析を削除しますか？');">
+                        <button class="delete-icon-button" type="submit" aria-label="削除" title="削除">
+                            <span aria-hidden="true">&#128465;</span>
+                        </button>
+                    </form>
+
                     <h3>{{ profile.title }}</h3>
-                    <p>{{ profile.content }}</p>
+                    <p class="profile-content" id="profile-content-{{ profile.id }}">{{ profile.content }}</p>
                     <small>{{ profile.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+
+                    <button class="profile-detail-button" type="button" onclick="showProfileModal(this)">
+                        詳細を見る
+                    </button>
                 </div>
                 {% endif %}
             {% endfor %}
@@ -55,6 +65,32 @@
     </section>
     {% endfor %}
 </div>
+
+
+
+<div id="profileModal" class="profile-modal" onclick="closeProfileModal()">
+    <div class="profile-modal-content" onclick="event.stopPropagation()">
+        <button class="profile-modal-close" type="button" onclick="closeProfileModal()" aria-label="閉じる">×</button>
+        <h2 id="profileModalTitle"></h2>
+        <small id="profileModalDate"></small>
+        <p id="profileModalContent"></p>
+    </div>
+</div>
+
+<script>
+    function showProfileModal(button) {
+        const card = button.closest(".profile-card");
+
+        document.getElementById("profileModalTitle").innerText = card.querySelector("h3").innerText;
+        document.getElementById("profileModalDate").innerText = card.querySelector("small").innerText;
+        document.getElementById("profileModalContent").innerText = card.querySelector(".profile-content").innerText;
+        document.getElementById("profileModal").style.display = "flex";
+    }
+
+    function closeProfileModal() {
+        document.getElementById("profileModal").style.display = "none";
+    }
+</script>
 
 </body>
 </html>
