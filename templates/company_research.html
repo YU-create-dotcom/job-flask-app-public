@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>企業研究</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% include "_openai_credit_meter.html" %}
+
+<div class="page-header company-page-header page-header-with-scroll-button" id="pageTop">
+    <h1>企業研究</h1>
+</div>
+
+<div class="fixed-nav fixed-nav-with-scroll-button fixed-nav-single-column">
+    <a href="/">トップへ戻る</a>
+    <button class="scroll-to-top-button company-scroll-to-top-button" type="button" onclick="scrollToPageTop()" aria-label="ページ上部へ戻る" title="ページ上部へ戻る">↑</button>
+</div>
+
+<div class="company-toolbar">
+    <button class="company-add-button" type="button" onclick="openCompanyForm()" aria-label="企業分析を追加" title="企業分析を追加">+</button>
+</div>
+
+<main class="company-research-page">
+    <section class="company-icon-grid" aria-label="企業研究一覧">
+        {% for company in companies %}
+        <button class="company-icon-card" type="button" onclick="openCompanyDetail({{ company.id }})" title="{{ company.company_name }}">
+            <span>{{ company.company_name }}</span>
+        </button>
+        {% endfor %}
+    </section>
+</main>
+
+<div id="companyDetailModal" class="company-modal" onclick="closeCompanyDetail()">
+    <div class="company-modal-content" onclick="event.stopPropagation()">
+        <div class="company-modal-actions">
+            <button class="company-modal-icon-button" type="button" onclick="openCompanyForm(currentCompanyId)" aria-label="編集" title="編集">&#9998;</button>
+            <form id="companyDeleteForm" method="POST" onsubmit="return confirm('この企業研究を削除しますか？');">
+                <button class="company-modal-icon-button danger" type="submit" aria-label="削除" title="削除">&#128465;</button>
+            </form>
+            <button class="company-modal-icon-button" type="button" onclick="closeCompanyDetail()" aria-label="閉じる" title="閉じる">×</button>
+        </div>
+
+        <h2 id="companyDetailName"></h2>
+        <small id="companyDetailMeta"></small>
+        <div class="company-detail-list" id="companyDetailList"></div>
+    </div>
+</div>
+
+<div id="companyFormModal" class="company-modal" onclick="closeCompanyForm()">
+    <div class="company-modal-content company-form-modal-content" onclick="event.stopPropagation()">
+        <button class="company-modal-icon-button company-form-close" type="button" onclick="closeCompanyForm()" aria-label="閉じる" title="閉じる">×</button>
+        <h2 id="companyFormTitle">企業分析を追加</h2>
+
+        <form id="companyForm" method="POST" action="/company-research/new">
+            <label>企業名</label>
+            <input type="text" name="company_name" id="companyNameInput" required>
+
+            <label>業界</label>
+            <input type="text" name="industry" id="companyIndustryInput">
+
+            <label>事業内容</label>
+            <textarea name="business" id="companyBusinessInput"></textarea>
+
+            <label>歴史</label>
+            <textarea name="history" id="companyHistoryInput"></textarea>
+
+            <label>詳細</label>
+            <textarea name="details" id="companyDetailsInput"></textarea>
+
+            <label>特徴</label>
+            <textarea name="features" id="companyFeaturesInput"></textarea>
+
+            <label>志望動機</label>
+            <textarea name="motivation" id="companyMotivationInput"></textarea>
+
+            <label>キャリアプラン</label>
+            <textarea name="career_plan" id="companyCareerPlanInput"></textarea>
+
+            <label>魅力</label>
+            <textarea name="appeal" id="companyAppealInput"></textarea>
+
+            <button type="submit">保存</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const companies = {{ companies_data | tojson }};
+let currentCompanyId = null;
+
+function scrollToPageTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function findCompany(id) {
+    return companies.find(company => company.id === Number(id));
+}
+
+function setValue(id, value) {
+    document.getElementById(id).value = value || "";
+}
+
+function detailRow(label, value) {
+    const safeValue = value || "未入力";
+    return `
+        <section class="company-detail-row">
+            <h3>${label}</h3>
+            <p>${escapeHtml(safeValue).replaceAll("\n", "<br>")}</p>
+        </section>
+    `;
+}
+
+function escapeHtml(text) {
+    return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function openCompanyDetail(id) {
+    const company = findCompany(id);
+    if (!company) return;
+
+    currentCompanyId = company.id;
+    document.getElementById("companyDetailName").textContent = company.company_name;
+    document.getElementById("companyDetailMeta").textContent = `作成日: ${company.created_at}`;
+    document.getElementById("companyDeleteForm").action = `/company-research/delete/${company.id}`;
+    document.getElementById("companyDetailList").innerHTML = [
+        detailRow("業界", company.industry),
+        detailRow("事業内容", company.business),
+        detailRow("歴史", company.history),
+        detailRow("詳細", company.details),
+        detailRow("特徴", company.features),
+        detailRow("志望動機", company.motivation),
+        detailRow("キャリアプラン", company.career_plan),
+        detailRow("魅力", company.appeal),
+    ].join("");
+
+    document.getElementById("companyDetailModal").style.display = "flex";
+}
+
+function closeCompanyDetail() {
+    document.getElementById("companyDetailModal").style.display = "none";
+}
+
+function openCompanyForm(id) {
+    const company = id ? findCompany(id) : null;
+    const form = document.getElementById("companyForm");
+
+    document.getElementById("companyFormTitle").textContent = company ? "企業分析を編集" : "企業分析を追加";
+    form.action = company ? `/company-research/edit/${company.id}` : "/company-research/new";
+
+    setValue("companyNameInput", company && company.company_name);
+    setValue("companyIndustryInput", company && company.industry);
+    setValue("companyBusinessInput", company && company.business);
+    setValue("companyHistoryInput", company && company.history);
+    setValue("companyDetailsInput", company && company.details);
+    setValue("companyFeaturesInput", company && company.features);
+    setValue("companyMotivationInput", company && company.motivation);
+    setValue("companyCareerPlanInput", company && company.career_plan);
+    setValue("companyAppealInput", company && company.appeal);
+
+    document.getElementById("companyFormModal").style.display = "flex";
+}
+
+function closeCompanyForm() {
+    document.getElementById("companyFormModal").style.display = "none";
+}
+</script>
+
+</body>
+</html>

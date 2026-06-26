@@ -1,0 +1,162 @@
+<div class="openai-credit-meter" id="openaiCreditMeter" aria-live="polite">
+  <div class="openai-credit-meter__main">
+    <div class="openai-credit-meter__text">
+      <div class="openai-credit-meter__line">
+        <span class="openai-credit-meter__name">OpenAI Credit</span>
+        <strong class="openai-credit-meter__balance" id="openaiCreditBalance">Loading</strong>
+        <span class="openai-credit-meter__percent" id="openaiCreditLabel">--</span>
+      </div>
+      <small id="openaiCreditDetail">Syncing...</small>
+    </div>
+    <button class="openai-credit-meter__edit" id="openaiCreditEdit" type="button" aria-label="Edit credit balance" title="Edit credit balance">&#9998;</button>
+  </div>
+
+  <div class="openai-credit-meter__bar" aria-hidden="true">
+    <div class="openai-credit-meter__ticks">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="openai-credit-meter__fill" id="openaiCreditFill"></div>
+  </div>
+
+  <div class="openai-credit-meter__scale">
+    <span>0</span>
+    <span>25</span>
+    <span>50</span>
+    <span>75</span>
+    <span>100%</span>
+  </div>
+
+  <form class="openai-credit-meter__form" id="openaiCreditForm">
+    <label>
+      Balance
+      <input id="openaiCreditBalanceInput" type="number" min="0" step="0.01" placeholder="4.40">
+    </label>
+    <label>
+      Limit
+      <input id="openaiCreditLimitInput" type="number" min="0" step="0.01" placeholder="5.00">
+    </label>
+    <button type="submit">Save</button>
+  </form>
+</div>
+
+<div class="ai-feedback-loading" id="aiFeedbackLoading" aria-live="assertive" aria-hidden="true">
+  <div class="ai-feedback-loading__panel">
+    <div class="ai-feedback-loading__spinner"></div>
+    <p>AI feedback is generating</p>
+    <small>Please wait</small>
+  </div>
+</div>
+
+<script>
+(function () {
+  const meter = document.getElementById("openaiCreditMeter");
+  const label = document.getElementById("openaiCreditLabel");
+  const balance = document.getElementById("openaiCreditBalance");
+  const fill = document.getElementById("openaiCreditFill");
+  const detail = document.getElementById("openaiCreditDetail");
+  const editButton = document.getElementById("openaiCreditEdit");
+  const form = document.getElementById("openaiCreditForm");
+  const balanceInput = document.getElementById("openaiCreditBalanceInput");
+  const limitInput = document.getElementById("openaiCreditLimitInput");
+
+  function setCreditUnavailable(message) {
+    meter.classList.add("is-unavailable");
+    label.textContent = "--";
+    balance.textContent = "Unknown";
+    fill.style.width = "0%";
+    detail.textContent = message;
+  }
+
+  function renderCredit(data) {
+    if (!data.ok) {
+      setCreditUnavailable(data.error || "Could not load credit");
+      return;
+    }
+
+    if (data.balance === null || data.balance === undefined) {
+      setCreditUnavailable("Use the pen button to enter balance");
+      return;
+    }
+
+    meter.classList.remove("is-unavailable");
+    const balanceValue = Number(data.balance);
+    const limitValue = Number(data.limit || 0);
+    const percent = data.percent === null || data.percent === undefined
+      ? null
+      : Math.max(0, Math.min(100, Number(data.percent)));
+
+    label.textContent = percent === null ? "Manual" : `${percent.toFixed(0)}%`;
+    balance.textContent = `$${balanceValue.toFixed(2)}`;
+    balanceInput.value = balanceValue.toFixed(2);
+    if (limitValue > 0) {
+      limitInput.value = limitValue.toFixed(2);
+    }
+    fill.style.width = `${percent === null ? 100 : percent}%`;
+    detail.textContent = limitValue > 0
+      ? `Balance / $${limitValue.toFixed(2)} limit`
+      : "Manual balance";
+  }
+
+  function parseJsonResponse(response) {
+    return response.text().then(text => {
+      try {
+        return {ok: response.ok, data: JSON.parse(text)};
+      } catch (error) {
+        return {
+          ok: false,
+          data: {ok: false, error: `Server returned HTML or invalid JSON (${response.status})`}
+        };
+      }
+    });
+  }
+
+  function refreshCredit() {
+    return fetch("/api/openai/credit", {cache: "no-store"})
+      .then(parseJsonResponse)
+      .then(({data}) => renderCredit(data))
+      .catch(() => setCreditUnavailable("Could not load credit"));
+  }
+
+  refreshCredit();
+
+  editButton.addEventListener("click", () => {
+    meter.classList.toggle("is-editing");
+    if (meter.classList.contains("is-editing")) {
+      balanceInput.focus();
+    }
+  });
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    detail.textContent = "Saving...";
+
+    fetch("/api/openai/credit/manual", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        balance: balanceInput.value,
+        limit: limitInput.value
+      })
+    })
+      .then(parseJsonResponse)
+      .then(({ok, data}) => {
+        if (!ok || !data.ok) {
+          throw new Error(data.error || "Could not save");
+        }
+        meter.classList.remove("is-editing");
+        return refreshCredit();
+      })
+      .catch(error => {
+        detail.textContent = error.message;
+      });
+  });
+
+  document.querySelectorAll(".ai-feedback-link[data-feedback-loading='true']").forEach(link => {
+    link.addEventListener("click", () => {
+      const loading = document.getElementById("aiFeedbackLoading");
+      loading.classList.add("is-visible");
+      loading.setAttribute("aria-hidden", "false");
+    });
+  });
+})();
+</script>

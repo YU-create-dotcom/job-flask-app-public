@@ -2,21 +2,24 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>GD・面接ログ一覧</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% include "_openai_credit_meter.html" %}
 
-<div class="page-header">
+<div class="page-header page-header-with-scroll-button" id="pageTop">
     <h1>GD・面接ログ一覧</h1>
 </div>
 
-<div class="fixed-nav">
+<div class="fixed-nav fixed-nav-with-scroll-button">
     <a href="/">トップへ戻る</a>
     <a href="/gd/new" class="secondary">新しく記録する</a>
+    <button class="scroll-to-top-button gd-scroll-to-top-button" type="button" onclick="scrollToPageTop()" aria-label="ページ上部へ戻る" title="ページ上部へ戻る">↑</button>
 </div>
 
-<div class="logs-grid">
+<div class="logs-grid logs-grid-with-scroll-button">
     {% for log in logs %}
     <div class="log-card">
         <form class="delete-form" method="POST" action="/gd/delete/{{ log.id }}" onsubmit="return confirm('このログを削除しますか？');">
@@ -28,15 +31,21 @@
         <h2>{{ log.company }}：{{ log.theme }}</h2>
         <p><strong>種類：</strong>{{ log.log_type }}</p>
         <p><strong>役割：</strong>{{ log.role }}</p>
-        <p><strong>作成日：</strong>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <p><strong>作成日：</strong>{{ log.created_at | jst }}</p>
 
         <div class="log-actions">
             <a href="/gd/detail/{{ log.id }}">記録を見る</a>
-            <a href="/gd/feedback/{{ log.id }}">AIフィードバックを見る</a>
+            <a href="/gd/feedback/{{ log.id }}" class="ai-feedback-link" data-feedback-loading="{{ 'false' if log.ai_feedback else 'true' }}">AIフィードバックを見る</a>
         </div>
     </div>
     {% endfor %}
 </div>
+
+<script>
+    function scrollToPageTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+</script>
 
 </body>
 </html>

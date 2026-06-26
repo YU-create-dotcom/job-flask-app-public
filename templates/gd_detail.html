@@ -2,10 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>GD・面接ログ詳細</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% include "_openai_credit_meter.html" %}
 
 <div class="page-header">
     <h1>GD・面接ログ詳細</h1>
@@ -21,7 +23,7 @@
 
     <p><strong>種類：</strong>{{ log.log_type }}</p>
     <p><strong>役割：</strong>{{ log.role }}</p>
-    <p><strong>作成日：</strong>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    <p><strong>作成日：</strong>{{ log.created_at | jst }}</p>
 
     <h3>状況</h3>
     <p>{{ log.situation }}</p>
@@ -35,7 +37,7 @@
     <h3>反省</h3>
     <p>{{ log.reflection }}</p>
 
-    <a href="/gd/feedback/{{ log.id }}">AIフィードバックを見る</a>
+    <a href="/gd/feedback/{{ log.id }}" class="ai-feedback-link" data-feedback-loading="{{ 'false' if log.ai_feedback else 'true' }}">AIフィードバックを見る</a>
 </div>
 
 </body>

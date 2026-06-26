@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>AIフィードバック</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIフィードバック</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% include "_openai_credit_meter.html" %}
 
 <div class="feedback-page">
   <h1>AIフィードバック</h1>
@@ -21,11 +23,8 @@
       | replace('【軸別スコア】', '</div><div class="feedback-section"><h3>軸別スコア</h3>')
       | replace('【良かった点】', '</div><div class="feedback-section"><h3>良かった点</h3>')
       | replace('【改善点】', '</div><div class="feedback-section"><h3>改善点</h3>')
-      | replace('【深掘り質問】', '</div><div class="feedback-section"><h3>深掘り質問</h3>')
       | replace('【危険信号チェック】', '</div><div class="feedback-section"><h3>危険信号チェック</h3>')
-      | replace('【自己分析との接続】', '</div><div class="feedback-section"><h3>自己分析との接続</h3>')
       | replace('【次回使える発言例】', '</div><div class="feedback-section"><h3>次回使える発言例</h3>')
-      | replace('【総括】', '</div><div class="feedback-section"><h3>総括</h3>')
       | replace('\n', '<br>')
       | safe
     }}
@@ -35,7 +34,7 @@
   <div class="feedback-links">
     <a href="/gd/logs">ログ一覧へ戻る</a>
     <a href="/">トップへ戻る</a>
-    <a href="/gd/feedback/{{ log.id }}?regenerate=1" class="secondary">最新の自己分析で再生成</a>
+    <a href="/gd/feedback/{{ log.id }}?regenerate=1" class="secondary ai-feedback-link" data-feedback-loading="true">最新の自己分析で再生成</a>
   </div>
 </div>
 

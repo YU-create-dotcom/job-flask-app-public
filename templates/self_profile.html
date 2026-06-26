@@ -2,20 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>自己分析管理</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% include "_openai_credit_meter.html" %}
 
-<div class="page-header">
+<div class="page-header self-profile-page-header" id="pageTop">
     <h1>自己分析管理</h1>
 </div>
 
-<div class="fixed-nav">
+<div class="fixed-nav self-profile-fixed-nav">
     <a href="/">トップへ戻る</a>
+    <button class="scroll-to-top-button" type="button" onclick="scrollToPageTop()" aria-label="ページ上部へ戻る" title="ページ上部へ戻る">↑</button>
 </div>
 
-<div class="form-page">
+<div class="form-page self-profile-form-page">
     <h2>新しく追加</h2>
 
     <form method="POST">
@@ -36,9 +39,19 @@
     </form>
 </div>
 
-<div class="profile-sections">
+<nav class="profile-toc" aria-label="自己分析の目次">
+    <h2>目次</h2>
+    <button class="profile-toc-edit-button" type="button" onclick="openCategoryEditor()" aria-label="項目を編集" title="項目を編集">&#9998;</button>
+    <div class="profile-toc-links">
+        {% for category in categories %}
+        <a href="#profile-section-{{ loop.index0 }}">{{ category }}</a>
+        {% endfor %}
+    </div>
+</nav>
+
+<div class="profile-sections" id="profileSections">
     {% for category in categories %}
-    <section class="profile-section">
+    <section class="profile-section" id="profile-section-{{ loop.index0 }}">
         <h2>{{ category }}</h2>
 
         <div class="profile-grid">
@@ -53,7 +66,7 @@
 
                     <h3>{{ profile.title }}</h3>
                     <p class="profile-content" id="profile-content-{{ profile.id }}">{{ profile.content }}</p>
-                    <small>{{ profile.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <small>{{ profile.created_at | jst }}</small>
 
                     <button class="profile-detail-button" type="button" onclick="showProfileModal(this)">
                         詳細を見る
@@ -64,6 +77,48 @@
         </div>
     </section>
     {% endfor %}
+</div>
+
+
+<div id="categoryEditorModal" class="category-editor-modal" onclick="closeCategoryEditor()">
+    <div class="category-editor-panel" role="dialog" aria-modal="true" aria-labelledby="categoryEditorTitle" onclick="event.stopPropagation()">
+        <button class="category-editor-close" type="button" onclick="closeCategoryEditor()" aria-label="閉じる" title="閉じる">×</button>
+
+        <form id="categoryEditorForm" method="POST" action="/self-profile/categories">
+            <section class="category-editor-section">
+                <h2 id="categoryEditorTitle">項目を追加する</h2>
+
+                <label for="categoryNameInput">項目名</label>
+                <input type="text" id="categoryNameInput" name="category_name" maxlength="50" autocomplete="off">
+
+                <label for="categoryPositionInput">追加場所を指定する</label>
+                <div class="category-position-field">
+                    <input type="text" id="categoryPositionInput" name="category_position" inputmode="numeric" autocomplete="off" aria-describedby="categoryPositionHelp">
+                    <span>番目</span>
+                </div>
+                <small id="categoryPositionHelp">1〜{{ categories|length + 1 }}の数字を入力してください。</small>
+            </section>
+
+            <section class="category-editor-section category-delete-section">
+                <h2>項目を削除する</h2>
+                <p>削除する項目を選ぶ</p>
+
+                <div class="category-delete-options">
+                    {% for category in category_records %}
+                    <label class="category-delete-option">
+                        <input type="checkbox" name="delete_categories" value="{{ category.id }}">
+                        <span>{{ category.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="category-editor-footer">
+                <button class="category-editor-submit" type="submit">決定</button>
+                <span id="categoryEditorError" class="category-editor-error" role="alert"></span>
+            </div>
+        </form>
+    </div>
 </div>
 
 
@@ -78,6 +133,50 @@
 </div>
 
 <script>
+    function scrollToPageTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openCategoryEditor() {
+        document.getElementById("categoryEditorError").textContent = "";
+        document.getElementById("categoryEditorModal").style.display = "flex";
+        document.body.classList.add("modal-open");
+    }
+
+    function closeCategoryEditor() {
+        document.getElementById("categoryEditorModal").style.display = "none";
+        document.body.classList.remove("modal-open");
+    }
+
+    document.getElementById("categoryEditorForm").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const form = event.currentTarget;
+        const error = document.getElementById("categoryEditorError");
+        const submitButton = form.querySelector(".category-editor-submit");
+        error.textContent = "";
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                body: new FormData(form),
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.ok) {
+                error.textContent = result.error || "入力が適切ではありません";
+                return;
+            }
+
+            window.location.href = result.redirect;
+        } catch (requestError) {
+            error.textContent = "保存できませんでした。もう一度お試しください";
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+
     function showProfileModal(button) {
         const card = button.closest(".profile-card");
 
