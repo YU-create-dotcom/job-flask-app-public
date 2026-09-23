@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理者ログイン</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="page-header"><h1>管理者ログイン</h1></div>
+  <main class="admin-login-page">
+    <form method="POST" class="settings-card admin-login-card">
+      <h2>サービス利用者を管理</h2>
+      <p>利用者IDの発行、パスワード再設定、利用停止を行えます。</p>
+      {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+      <label>管理者ID</label>
+      <input type="text" name="login_id" autocomplete="username" required autofocus>
+      <label>管理者パスワード</label>
+      <input type="password" name="password" autocomplete="current-password" required>
+      <button type="submit">ログイン</button>
+      <a class="admin-back-link" href="/">トップへ戻る</a>
+    </form>
+  </main>
+</body>
+</html>

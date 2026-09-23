@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>サービス利用者管理</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="page-header"><h1>サービス利用者管理</h1></div>
+  <div class="fixed-nav admin-fixed-nav">
+    <a href="/">トップへ戻る</a>
+    <form method="POST" action="/admin/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="secondary">管理者ログアウト</button>
+    </form>
+  </div>
+  <main class="settings-page admin-page admin-users-page">
+    {% if message %}<p class="form-success">{{ message }}</p>{% endif %}
+    {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+    {% if not error or users %}
+    <section class="settings-card">
+      <h2>新しい利用者を発行</h2>
+      <form method="POST" class="admin-create-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="create">
+        <input type="text" name="login_id" placeholder="利用者ID" autocomplete="off" required>
+        <input type="text" name="display_name" placeholder="表示名" required>
+        <input type="password" name="password" placeholder="初期パスワード（8文字以上）" minlength="8" autocomplete="new-password" required>
+        <button type="submit">発行する</button>
+      </form>
+    </section>
+    <section class="admin-user-grid">
+      {% for user in users %}
+      <form method="POST" class="settings-card admin-user-card">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" name="user_id" value="{{ user.id }}">
+        <h2>{{ user.display_name }}</h2>
+        <p>ID：{{ user.login_id }}</p>
+        <label>新しいパスワード（変更時のみ）</label>
+        <input type="password" name="new_password" minlength="8" autocomplete="new-password">
+        <label class="inline-checkbox"><input type="checkbox" name="is_active" value="1" {% if user.is_active_account %}checked{% endif %}> 利用可能</label>
+        <button type="submit">更新する</button>
+      </form>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </main>
+</body>
+</html>

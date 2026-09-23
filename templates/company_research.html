@@ -25,7 +25,7 @@
 <main class="company-research-page">
     <section class="company-icon-grid" aria-label="企業研究一覧">
         {% for company in companies %}
-        <button class="company-icon-card" type="button" onclick="openCompanyDetail({{ company.id }})" title="{{ company.company_name }}">
+        <button class="company-icon-card" type="button" onclick="openCompanyDetail({{ company.id }})">
             <span>{{ company.company_name }}</span>
         </button>
         {% endfor %}

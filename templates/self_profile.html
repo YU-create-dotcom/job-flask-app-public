@@ -125,12 +125,15 @@
 
 <div id="profileModal" class="profile-modal" onclick="closeProfileModal()">
     <div class="profile-modal-content" onclick="event.stopPropagation()">
+        <button class="profile-modal-copy" type="button" onclick="copyProfileModalContent()" aria-label="内容をコピー" title="内容をコピー">&#128214;</button>
         <button class="profile-modal-close" type="button" onclick="closeProfileModal()" aria-label="閉じる">×</button>
         <h2 id="profileModalTitle"></h2>
         <small id="profileModalDate"></small>
+        <small id="profileModalCount" class="profile-modal-count"></small>
         <p id="profileModalContent"></p>
     </div>
 </div>
+<div id="profileCopyToast" class="profile-copy-toast" role="status" aria-live="polite">コピーされました</div>
 
 <script>
     function scrollToPageTop() {
@@ -179,15 +182,49 @@
 
     function showProfileModal(button) {
         const card = button.closest(".profile-card");
+        const content = card.querySelector(".profile-content").innerText;
 
         document.getElementById("profileModalTitle").innerText = card.querySelector("h3").innerText;
         document.getElementById("profileModalDate").innerText = card.querySelector("small").innerText;
-        document.getElementById("profileModalContent").innerText = card.querySelector(".profile-content").innerText;
+        document.getElementById("profileModalCount").innerText = `${Array.from(content).length}文字`;
+        document.getElementById("profileModalContent").innerText = content;
         document.getElementById("profileModal").style.display = "flex";
+        document.body.classList.add("modal-open");
     }
 
     function closeProfileModal() {
         document.getElementById("profileModal").style.display = "none";
+        document.body.classList.remove("modal-open");
+    }
+
+    async function copyProfileModalContent() {
+        const content = document.getElementById("profileModalContent").innerText;
+        if (!content) return;
+
+        try {
+            await navigator.clipboard.writeText(content);
+        } catch (clipboardError) {
+            const textarea = document.createElement("textarea");
+            textarea.value = content;
+            textarea.setAttribute("readonly", "");
+            textarea.style.position = "fixed";
+            textarea.style.top = "-1000px";
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            textarea.remove();
+        }
+
+        showProfileCopyToast();
+    }
+
+    function showProfileCopyToast() {
+        const toast = document.getElementById("profileCopyToast");
+        window.clearTimeout(toast.hideTimer);
+        toast.classList.add("show");
+        toast.hideTimer = window.setTimeout(() => {
+            toast.classList.remove("show");
+        }, 1200);
     }
 </script>
 
