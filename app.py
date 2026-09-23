@@ -1,7 +1,7 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask import Flask, render_template, jsonify, request, redirect, session, url_for
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -12,10 +12,20 @@ import json
 import time
 import base64
 import unicodedata
+import hmac
+import secrets
+from functools import wraps
+from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-this-before-production")
+if os.getenv("RENDER") and app.config["SECRET_KEY"] == "change-this-before-production":
+    raise RuntimeError("SECRET_KEY must be configured on Render")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(os.getenv("RENDER"))
 
 # =========================
 # SQLite設定
@@ -28,6 +38,29 @@ elif database_url.startswith("postgresql://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+if database_url.startswith("postgresql+"):
+    # Render may suspend both the web service and its database. Connections
+    # left in SQLAlchemy's pool are then invalid when the service wakes up.
+    # Check a pooled connection before using it and replace stale connections
+    # automatically instead of returning a one-off 500 response.
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+
+service_database_url = os.getenv("SERVICE_DATABASE_URL", "")
+if service_database_url.startswith("postgres://"):
+    service_database_url = service_database_url.replace("postgres://", "postgresql+psycopg://", 1)
+elif service_database_url.startswith("postgresql://"):
+    service_database_url = service_database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+if service_database_url:
+    app.config["SQLALCHEMY_BINDS"] = {
+        "service": {
+            "url": service_database_url,
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
+    }
 db = SQLAlchemy(app)
 
 # =========================
@@ -108,7 +141,6 @@ scope = [
 def load_google_credentials():
     credentials_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
     credentials_base64 = os.getenv("GOOGLE_CREDENTIALS_BASE64")
-    credentials_file = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
 
     if credentials_json:
         credentials_info = json.loads(credentials_json)
@@ -130,17 +162,14 @@ def load_google_credentials():
             ) from exc
         return ServiceAccountCredentials.from_json_keyfile_dict(credentials_info, scope)
 
-    if os.path.exists(credentials_file):
-        return ServiceAccountCredentials.from_json_keyfile_name(credentials_file, scope)
-
-    return None
+    return ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 
 
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
-SHEET_NAME = os.getenv("SHEET_NAME", "シート1")
+SPREADSHEET_ID = "1aripBFJDo9-RkxrDDRfds7YhRZqvPpzjuTZkjJxshmo"
+SHEET_NAME = "シート1"
 
-MAIL_SPREADSHEET_ID = os.getenv("MAIL_SPREADSHEET_ID")
-MAIL_SHEET_NAME = os.getenv("MAIL_SHEET_NAME", "就活管理")
+MAIL_SPREADSHEET_ID = "1cBRZsd6qF64l6pWNN0gFRaboZBDIOB2DCoJs8_aNNBc"
+MAIL_SHEET_NAME = "就活管理"
 
 gspread_client = None
 
@@ -149,33 +178,17 @@ def get_gspread_client():
     global gspread_client
     if gspread_client is None:
         creds = load_google_credentials()
-        if creds is None:
-            return None
         gspread_client = gspread.authorize(creds)
     return gspread_client
 
 
 def get_event_sheet():
-    if not SPREADSHEET_ID:
-        return None
-
-    client = get_gspread_client()
-    if client is None:
-        return None
-
-    spreadsheet = client.open_by_key(SPREADSHEET_ID)
+    spreadsheet = get_gspread_client().open_by_key(SPREADSHEET_ID)
     return spreadsheet.worksheet(SHEET_NAME)
 
 
 def get_mail_sheet():
-    if not MAIL_SPREADSHEET_ID:
-        return None
-
-    client = get_gspread_client()
-    if client is None:
-        return None
-
-    mail_spreadsheet = client.open_by_key(MAIL_SPREADSHEET_ID)
+    mail_spreadsheet = get_gspread_client().open_by_key(MAIL_SPREADSHEET_ID)
     return mail_spreadsheet.worksheet(MAIL_SHEET_NAME)
 
 
@@ -221,6 +234,61 @@ class CompanyResearch(db.Model):
     appeal = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=utc_now)
     updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+
+
+class ServiceUser(db.Model):
+    """Read and manage accounts that belong to job-flask-app-service.
+
+    This model deliberately uses a separate database bind. The personal app's
+    own records remain in DATABASE_URL; only the service account table is read
+    from SERVICE_DATABASE_URL.
+    """
+
+    __bind_key__ = "service"
+    __tablename__ = "user"
+
+    id = db.Column(db.Integer, primary_key=True)
+    login_id = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    display_name = db.Column(db.String(100), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_active_account = db.Column(db.Boolean, default=True, nullable=False)
+    ai_balance = db.Column(db.Numeric(10, 6), nullable=False)
+    ai_limit = db.Column(db.Numeric(10, 2), nullable=False)
+    ai_model = db.Column(db.String(50), nullable=False)
+    sheet_id = db.Column(db.String(200))
+    sheet_name = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, nullable=False)
+
+
+def admin_login_is_valid(login_id, password):
+    expected_id = os.getenv("ADMIN_LOGIN_ID", "")
+    expected_password = os.getenv("ADMIN_PASSWORD", "")
+    return bool(expected_id and expected_password) and hmac.compare_digest(login_id, expected_id) and hmac.compare_digest(password, expected_password)
+
+
+def service_database_is_configured():
+    return bool(service_database_url)
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("job_admin_authenticated"):
+            return redirect(url_for("admin_login", next=request.path))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def admin_csrf_token():
+    return session.setdefault("job_admin_csrf_token", secrets.token_urlsafe(32))
+
+
+def require_admin_csrf():
+    submitted = request.form.get("csrf_token", "")
+    expected = session.get("job_admin_csrf_token", "")
+    if not expected or not hmac.compare_digest(submitted, expected):
+        raise ValueError("不正な操作です。画面を再読み込みしてからやり直してください。")
 
 
 MIGRATION_MODELS = {
@@ -497,6 +565,24 @@ def parse_date(value):
     return None
 
 
+def build_sheet_event_title(company, summary, category):
+    title_parts = [company, str(summary or "").strip(), category]
+    return "：".join(part for part in title_parts if part)
+
+
+def format_event_datetime(start_dt, end_dt=None):
+    if not start_dt:
+        return ""
+
+    if end_dt and end_dt.date() == start_dt.date():
+        return f"{start_dt.strftime('%Y-%m-%d %H:%M')}〜{end_dt.strftime('%H:%M')}"
+
+    if end_dt:
+        return f"{start_dt.strftime('%Y-%m-%d %H:%M')}〜{end_dt.strftime('%Y-%m-%d %H:%M')}"
+
+    return start_dt.strftime("%Y-%m-%d %H:%M")
+
+
 # =========================
 # トップページ
 # =========================
@@ -505,16 +591,99 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error = None
+    if request.method == "POST":
+        if admin_login_is_valid(request.form.get("login_id", ""), request.form.get("password", "")):
+            session.clear()
+            session["job_admin_authenticated"] = True
+            admin_csrf_token()
+            next_path = request.args.get("next", "")
+            if not next_path.startswith("/") or next_path.startswith("//") or "\\" in next_path:
+                next_path = url_for("admin_users")
+            return redirect(next_path)
+        error = "管理者IDまたはパスワードが正しくありません。"
+    return render_template("admin_login.html", error=error)
+
+
+@app.post("/admin/logout")
+@admin_required
+def admin_logout():
+    try:
+        require_admin_csrf()
+    except ValueError:
+        return redirect(url_for("admin_users"))
+    session.clear()
+    return redirect(url_for("index"))
+
+
+@app.route("/admin/users", methods=["GET", "POST"])
+@admin_required
+def admin_users():
+    message = None
+    error = None
+    if not service_database_is_configured():
+        error = "SERVICE_DATABASE_URL が未設定です。Renderでサービス版と同じPostgreSQL接続文字列を設定してください。"
+        return render_template("admin_users.html", users=[], message=message, error=error, csrf_token=admin_csrf_token())
+
+    if request.method == "POST":
+        try:
+            require_admin_csrf()
+            action = request.form.get("action", "")
+            if action == "create":
+                login_id = request.form.get("login_id", "").strip()
+                display_name = request.form.get("display_name", "").strip() or login_id
+                password = request.form.get("password", "")
+                if not login_id or len(login_id) > 80 or len(display_name) > 100 or len(password) < 8:
+                    raise ValueError("ID、表示名、パスワード（8文字以上）を確認してください。")
+                if ServiceUser.query.filter_by(login_id=login_id).first():
+                    raise ValueError("この利用者IDは既に使われています。")
+                user = ServiceUser(
+                    login_id=login_id,
+                    password_hash=generate_password_hash(password),
+                    display_name=display_name,
+                    is_admin=False,
+                    is_active_account=True,
+                    ai_balance=5,
+                    ai_limit=5,
+                    ai_model="gpt-5.4-mini",
+                    created_at=datetime.now(),
+                )
+                db.session.add(user)
+                db.session.commit()
+                message = f"{display_name}のアカウントを発行しました。"
+            elif action == "update":
+                user_id = request.form.get("user_id", "")
+                if not user_id.isdigit():
+                    raise ValueError("利用者を特定できません。")
+                user = db.session.get(ServiceUser, int(user_id))
+                if not user:
+                    raise ValueError("利用者が見つかりません。")
+                new_password = request.form.get("new_password", "")
+                if new_password:
+                    if len(new_password) < 8:
+                        raise ValueError("新しいパスワードは8文字以上にしてください。")
+                    user.password_hash = generate_password_hash(new_password)
+                user.is_active_account = request.form.get("is_active") == "1"
+                db.session.commit()
+                message = f"{user.display_name}のアカウントを更新しました。"
+            else:
+                raise ValueError("不明な操作です。")
+        except ValueError as exc:
+            db.session.rollback()
+            error = str(exc)
+
+    users = ServiceUser.query.order_by(ServiceUser.created_at.asc()).all()
+    return render_template("admin_users.html", users=users, message=message, error=error, csrf_token=admin_csrf_token())
+
+
 # =========================
 # Google Sheets → カレンダー予定API
 # =========================
 @app.route("/api/events")
 def api_events():
-    event_sheet = get_event_sheet()
-    if event_sheet is None:
-        return jsonify([])
-
-    rows = event_sheet.get_all_values()
+    rows = get_event_sheet().get_all_values()
     events = []
 
     for row in rows[1:]:
@@ -523,6 +692,7 @@ def api_events():
         summary = row[6] if len(row) > 6 else ""
         deadline = row[7] if len(row) > 7 else ""
         join_date = row[8] if len(row) > 8 else ""
+        join_end = row[9] if len(row) > 9 else ""
 
         if not company:
             continue
@@ -531,25 +701,37 @@ def api_events():
 
         deadline_dt = parse_date(deadline)
         if deadline_dt:
+            modal_category = "ES締め切り"
             events.append({
                 "title": f"{company}：ES締切",
+                "modal_title": build_sheet_event_title(company, summary, modal_category),
                 "company": company,
                 "category": "ES締切",
                 "summary": summary,
                 "date": deadline_dt.strftime("%Y-%m-%d"),
                 "time": deadline_dt.strftime("%H:%M"),
+                "modal_datetime": format_event_datetime(deadline_dt),
                 "incomplete": is_incomplete
             })
 
         join_dt = parse_date(join_date)
         if join_dt:
+            join_end_dt = parse_date(join_end)
+            if not join_end_dt or join_end_dt <= join_dt:
+                join_end_dt = join_dt + timedelta(hours=1)
+
+            modal_category = "インターン"
             events.append({
                 "title": f"{company}：インターン",
+                "modal_title": build_sheet_event_title(company, summary, modal_category),
                 "company": company,
                 "category": "インターン",
                 "summary": summary,
                 "date": join_dt.strftime("%Y-%m-%d"),
                 "time": join_dt.strftime("%H:%M"),
+                "end_date": join_end_dt.strftime("%Y-%m-%d"),
+                "end_time": join_end_dt.strftime("%H:%M"),
+                "modal_datetime": format_event_datetime(join_dt, join_end_dt),
                 "incomplete": False
             })
 
@@ -558,9 +740,6 @@ def api_events():
 @app.route("/api/mails")
 def api_mails():
     mail_sheet = get_mail_sheet()
-    if mail_sheet is None:
-        return jsonify([])
-
     rows = mail_sheet.get_all_values()
     mails = []
 
@@ -592,19 +771,13 @@ def api_mails():
 @app.route("/api/mails/all")
 def api_mails_all():
     mail_sheet = get_mail_sheet()
-    if mail_sheet is None:
-        return jsonify([])
-
     rows = mail_sheet.get_all_values()
     return jsonify(rows)
 
 @app.route("/mail/details")
 def mail_details():
     mail_sheet = get_mail_sheet()
-    if mail_sheet is None:
-        rows = [["受信日時", "企業名", "件名", "分類", "締切", "本文", "URL", "ID", "状態"]]
-    else:
-        rows = mail_sheet.get_all_values()
+    rows = mail_sheet.get_all_values()
 
     html = """
     <!DOCTYPE html>
@@ -1057,7 +1230,7 @@ GDまたは面接でそのまま使える発言例を3〜5個書く。
 
     try:
         response = openai_client.responses.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
+            model="gpt-5.5",
             input=prompt,
             max_output_tokens=4000
         )
@@ -1079,7 +1252,9 @@ GDまたは面接でそのまま使える発言例を3〜5個書く。
 # 起動
 # =========================
 with app.app_context():
-    db.create_all()
+    # Account records for the distributed service live in a separately managed
+    # database. This app must never create or migrate that database on startup.
+    db.create_all(bind_key=None)
     import_startup_data_if_configured()
     ensure_self_profile_categories()
 

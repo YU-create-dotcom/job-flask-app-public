@@ -6,22 +6,20 @@
 - Build command: `pip install -r requirements.txt`
 - Start command: `gunicorn app:app`
 
-`gunicorn.conf.py` sets a 300-second worker timeout for long AI feedback requests.
+`gunicorn.conf.py` によりワーカータイムアウトは300秒です。
 
 ## Environment variables
 
 Set these in Render, not in GitHub.
 
 - `OPENAI_API_KEY`
-- `OPENAI_ADMIN_API_KEY` optional, for organization cost API access
-- `OPENAI_MODEL`
 - `OPENAI_MONTHLY_CREDIT_LIMIT_USD`
-- `OPENAI_CREDIT_BALANCE_USD` optional manual fallback
+- `OPENAI_CREDIT_BALANCE_USD`
 - `GOOGLE_CREDENTIALS_BASE64`
-- `SPREADSHEET_ID`
-- `SHEET_NAME`
-- `MAIL_SPREADSHEET_ID`
-- `MAIL_SHEET_NAME`
+- `SECRET_KEY`
+- `ADMIN_LOGIN_ID`
+- `ADMIN_PASSWORD`
+- `SERVICE_DATABASE_URL`: `job-flask-app-service` が利用しているPostgreSQLの接続文字列
 
 `GOOGLE_CREDENTIALS_BASE64` should be the Base64-encoded contents of `credentials.json`.
 
