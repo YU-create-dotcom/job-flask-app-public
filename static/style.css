@@ -838,10 +838,10 @@ body.modal-open {
     box-shadow: 0 18px 50px rgba(0,0,0,0.22);
 }
 
+.profile-modal-copy,
 .profile-modal-close {
     position: absolute;
     top: 18px;
-    right: 18px;
     width: 40px;
     height: 40px;
     border: none;
@@ -852,6 +852,16 @@ body.modal-open {
     line-height: 1;
 }
 
+.profile-modal-copy {
+    right: 66px;
+    font-size: 21px;
+}
+
+.profile-modal-close {
+    right: 18px;
+}
+
+.profile-modal-copy:hover,
 .profile-modal-close:hover {
     background: #e5e7eb;
 }
@@ -864,8 +874,12 @@ body.modal-open {
 
 .profile-modal-content small {
     display: block;
-    margin-bottom: 22px;
+    margin-bottom: 8px;
     color: #64748b;
+}
+
+.profile-modal-count {
+    margin-bottom: 22px;
 }
 
 .profile-modal-content p {
@@ -873,6 +887,27 @@ body.modal-open {
     white-space: pre-wrap;
     line-height: 1.9;
     font-size: 17px;
+}
+
+.profile-copy-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 4000;
+    transform: translate(-50%, -50%);
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.86);
+    color: #fff;
+    font-size: 17px;
+    line-height: 1.4;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.profile-copy-toast.show {
+    opacity: 1;
 }
 
 .feedback-links a.secondary {
@@ -1064,6 +1099,136 @@ body.modal-open {
 
 .openai-credit-meter__form button:hover {
     background: #1d4ed8;
+}
+
+.admin-login-launch {
+    position: fixed;
+    top: 126px;
+    right: 14px;
+    z-index: 1001;
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 3px 9px rgba(29, 78, 216, 0.24);
+}
+
+.admin-login-launch:hover {
+    background: #1e40af;
+}
+
+.admin-login-page,
+.admin-users-page {
+    margin-top: 146px;
+}
+
+.admin-login-card {
+    display: grid;
+    width: min(440px, calc(100% - 40px));
+    margin: 0 auto;
+    gap: 10px;
+}
+
+.admin-login-card h2,
+.admin-login-card p {
+    margin: 0;
+}
+
+.settings-card {
+    padding: 22px;
+    border: 1px solid #dbe3ef;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.settings-card label,
+.settings-card input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.settings-card input {
+    margin-top: 5px;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+
+.settings-card button {
+    justify-self: start;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.settings-page {
+    display: grid;
+    gap: 18px;
+    width: min(1200px, calc(100% - 48px));
+    margin: 146px auto 48px;
+}
+
+.admin-create-form,
+.admin-user-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-create-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+}
+
+.admin-user-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-user-card {
+    display: grid;
+    gap: 10px;
+}
+
+.inline-checkbox {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+}
+
+.inline-checkbox input {
+    width: auto;
+    margin: 0;
+}
+
+.form-error {
+    color: #b91c1c;
+    font-weight: 700;
+}
+
+.form-success {
+    color: #15803d;
+    font-weight: 700;
+}
+
+.admin-back-link {
+    color: #1d4ed8;
+}
+
+.admin-fixed-nav form {
+    margin: 0;
+}
+
+.admin-fixed-nav .secondary {
+    background: #475569;
 }
 
 .company-page-header {
@@ -1602,6 +1767,36 @@ body.modal-open {
         line-height: 1.75;
     }
 
+    .profile-modal {
+        align-items: stretch;
+        height: 100vh;
+        height: 100dvh;
+        padding: 12px 10px max(88px, calc(env(safe-area-inset-bottom) + 28px));
+        overflow: hidden;
+    }
+
+    .profile-modal-content {
+        width: 100%;
+        max-height: none;
+        height: calc(100dvh - max(100px, calc(env(safe-area-inset-bottom) + 40px)));
+        margin: 0;
+        padding: 58px 18px max(96px, calc(env(safe-area-inset-bottom) + 40px));
+        border-radius: 12px;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    .profile-modal-content h2 {
+        margin-right: 96px;
+        font-size: 25px;
+        line-height: 1.35;
+    }
+
+    .profile-modal-content p {
+        font-size: 17px;
+        line-height: 1.85;
+    }
+
     .calendar-section {
         padding: 14px 10px;
         overflow-x: hidden;
@@ -1696,5 +1891,27 @@ body.modal-open {
         max-height: none;
         overflow: visible;
         padding: 24px 20px;
+    }
+
+    .admin-login-launch {
+        top: 106px;
+        right: 8px;
+        padding: 6px 9px;
+        font-size: 10px;
+    }
+
+    .admin-login-page,
+    .admin-users-page {
+        margin-top: 166px;
+    }
+
+    .settings-page {
+        width: calc(100% - 24px);
+        margin-top: 166px;
+    }
+
+    .admin-create-form,
+    .admin-user-grid {
+        grid-template-columns: 1fr;
     }
 }
